@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Practica 3</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <style>
+            canvas{
+                padding: 0px;
+                border: 1px solid black;
+                background-color: black; 
+                margin: auto;
+                display: block;
+            }
+            
+        </style>
+
+         <!-- Font Awesome icons (free version)-->
+         <script src="https://use.fontawesome.com/releases/v6.1.0/js/all.js" crossorigin="anonymous"></script>
+
+        <link href="style.css" rel="stylesheet" />
+
+    </head>
+    <body>
+        <!-- Back button-->
+        <a class="menu-toggle" href="../page_missile_commander.html"><i class="fa fa-arrow-left"></i></a>
+        <div>
+            <canvas id="lienzo" width="940" height="650">Error al cargar el canvas</canvas>
+            
+            <audio id="explosion"><source src="sfx/317763__jalastram__sfx-explosion-15.wav"/></audio>
+            <audio id="alarm"><source src="sfx/365641__furbyguy__8-bit-alarm.wav"/></audio>
+            
+        </div>
+        <script>
+            var canvas = document.getElementById("lienzo");
+            var contexto = canvas.getContext("2d");
+            
+            var ritmo = 25; //Veces por segundo que va a ejecutarse el tempo
+            
+            var terreno = new Image();
+            terreno.src = "img/Missilecommand_Suelo.png";
+           
+            var objetos = new Image();
+            objetos.src = "img/Missilecommand_objects.png";
+            
+            var lowout = new Image();
+            lowout.src = "img/Missilecommand_LowOut.png";
+            
+            var explosion_audio = document.getElementById("explosion");
+            var alarm_audio = document.getElementById("alarm");
+            //var explosion_sound = new S
+            
+            canvas.addEventListener('mousedown', function(e) {
+                getClickPosition(canvas, e);
+            });
+            
+            function getClickPosition(canvas, event) {
+                //Obtenemos la posición del click en el canvas
+                const rect = canvas.getBoundingClientRect();
+
+                mundo.launchPlayerMissile(event.clientX - rect.left, event.clientY - rect.top);
+            };
+            
+            function Game(){
+                var cities;
+                var missiles;
+                var explosions;
+                var missile_silos;
+                
+                var ufo;
+                var plane;
+                
+                var score = 0;
+                
+                var remaining_city_points = 100;
+                var remaining_missile_points = 5;
+                var destroyed_missile_points = 25;
+                var plane_points = 300;
+                var ufo_points = 1000;
+                
+                var score_bonus = 1;
+                var remaining_cities = 6;
+                var remaining_missiles = 30;
+                
+                var wave = 1;
+                var enemy_missile_speed = 0.1;
+                var player_missile_speed = 0.7;
+                
+                //Lista de colores posibles para explosiones, misiles y textos
+                var colors = ["white", "red", "yellow", "pink", "green", "blue"];
+                var enemy_missile_color = "red";
+                var player_missile_color = "blue";
+                
+                var enemies_per_wave = 4;
+                var remaining_enemies;
+                
+                var show_title_screen = false;
+                var loading_wave = false;
+                var show_wave_hud = false;
+                var show_score_results = false;
+                
+                var wave_over = false;
+                var game_over = false;
+                
+                this.setupGame = function(){
+                    //Inicializamos los objetos del juego
+                    cities = [];
+                    missiles = [];
+                    explosions = [];
+                    missile_silos = [];
+                    
+                    missile_silos[0] = new Silo(78, 555);
+                    missile_silos[0].setupMissiles(10);
+                    missile_silos[1] = new Silo(490, 555);
+                    missile_silos[1].setupMissiles(10);
+                    missile_silos[2] = new Silo(880, 555);
+                    missile_silos[2].setupMissiles(10);
+        
+                    cities[0] = new City(148, 570);
+                    cities[1] = new City(255, 575);
+                    cities[2] = new City(354, 579);
+                    cities[3] = new City(570, 570);
+                    cities[4] = new City(680, 560);
+                    cities[5] = new City(760, 570);
+                    
+                    plane = new Plane();
+                    ufo = new Ufo();
+                    
+                    showTitleScreen();  //Empezar mostrando la pantalla de titulo
+                    //showWaveHud();      //Empezando en el comienzo del primer nivel
+                };
+                
+                this.isLoadingWave = function(){
+                    return loading_wave;
+                };
+                
+                
+                showTitleScreen = function(){
+                    show_title_screen = true;
+                    
+                    setTimeout(showWaveHud, 3000);
+                };
+                
+                //Se muestran los resultados de la ronda durante 3 segundos
+                showScoreResults = function(){
+                    show_score_results = true;
+                    
+                    remaining_missiles = 0;
+                    for(var i = 0; i < missile_silos.length; i++){
+                        remaining_missiles += missile_silos[i].getMissileCount();
+                    }
+                    wave++;
+                    setTimeout(startLoading, 3000);
+                };
+                
+                //Pantalla en negro por un tiempo limitado
+                startLoading = function(){
+                    
+                    show_score_results = false;
+                    
+                    explosions = [];
+                    missiles = [];
+                    plane.setOnScreen(false);
+                    ufo.setOnScreen(false);
+                    
+                    //Aplicamos la puntuación
+                    for(var i = 0; i < cities.length; i++){
+                        if(!cities[i].isDestroyed()){
+                            score += remaining_city_points * score_bonus;
+                        }
+                    }
+                    
+                    for(var i = 0; i < missile_silos.length; i++){
+                        score += missile_silos[i].getMissileCount() * remaining_missile_points * score_bonus;
+                                
+                        //Reponemos los misiles
+                        missile_silos[i].setupMissiles(10);
+                    }
+                    
+                    //Se reconstruye una ciudad destruida cada 4 rondas
+                    if(wave % 4 === 0){
+                        for(var i = 0; i < cities.length; i++){
+                            if(cities[i].isDestroyed()){
+                                cities[i].rebuild();
+                                remaining_cities++;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    //Cada 3 rondas aumentamos el número de enemigos por oleada
+                    if(wave % 2 === 0){
+                        enemies_per_wave++;
+                    }
+                    
+                    //Cada 2 rondas aumentamos ligeramente la velocidad de los enemigos
+                    if(wave % 3 === 0 && enemies_per_wave < 30){
+                        enemy_missile_speed += 0.03;
+                    }
+
+                    loading_wave = true;
+                    setTimeout(showWaveHud, 500);
+                };
+                
+                //Se muestran textos del nivel y bonificador durante 3 segundos
+                showWaveHud = function(){
+                    show_title_screen = false;
+                    
+                    alarm_audio.currentTime = 0;
+                    alarm_audio.play();
+                    loading_wave = false;
+                    
+                    //Aumentamos el bonificador de puntos cada 3 rondas
+                    if(wave %3 === 0){
+                        score_bonus++;
+                    }
+  
+                    //Seleccionamos un nuevo color para los textos y los misiles enemigos
+                    enemy_missile_color = colors[numeroAleatorio(colors.length - 1)];
+                    
+                    show_wave_hud = true;
+                    setTimeout(startWave, 3000);
+                };
+                
+                //Comienza la ronda
+                startWave = function(){
+                    show_wave_hud = false;
+                    wave_over = false;
+                    
+                    remaining_enemies = enemies_per_wave * 2;
+                    
+                    //Aparecen los primeros misiles enemigos
+                    for(var i = 0; i < enemies_per_wave; i++){
+                        launchEnemyMissile();
+                    }
+                    
+                    //Puede aparecer un avion
+                    if(numeroAleatorio(10) <= 6){
+                        plane.setupOnScreen();
+                    }
+                    
+                    //Puede aparecer un alien
+                    if(numeroAleatorio(10) <= 4){
+                        ufo.setupOnScreen();
+                    }
+                    
+                    //A los 7 segundos lanzamos la siguiente ronda
+                    setTimeout(secondWave, 7000);
+                    function secondWave(){
+                        for(var i = 0; i < enemies_per_wave; i++){
+                            launchEnemyMissile();
+                        }
+                    }
+                };
+   
+                this.launchPlayerMissile = function(posX, posY){
+                    //Solo podemos disparar cuando el nivel haya comenzado
+                    if(show_title_screen || loading_wave || show_score_results || show_wave_hud){
+                        return;
+                    }
+                    
+                    
+                    //Determinar qué silo será el que lance el misil
+                    var closestSiloIndex = -1;
+                    var closestDistance = 99999;
+                    
+                    for(var i = 0; i < missile_silos.length; i++){
+                        if(!missile_silos[i].hasMissilesLeft()){
+                            continue;
+                        }
+                        
+                        var dist = getDistanceBetweenPoints(missile_silos[i].getPosX(), missile_silos[i].getPosY(), posX, posY);
+                        if(dist < closestDistance){
+                            closestDistance = dist;
+                            closestSiloIndex = i;
+                        }
+                    }
+                    
+                    if(closestSiloIndex === -1){
+                        return; //No quedan silos con munición
+                    }else{
+                        //Disparamos un misil desde el silo seleccionado hacia la posicion del cursor
+                        missile_silos[closestSiloIndex].shootMissile();
+                        missiles[missiles.length] = new Missile(missile_silos[closestSiloIndex].getPosX(), missile_silos[closestSiloIndex].getPosY(), posX, posY, player_missile_color, player_missile_speed);
+                    }
+                };
+                
+                launchEnemyMissile = function(){
+                    //Se determina una posición inicial para el misil
+                    var posX = numeroAleatorio(canvas.width);
+                    var posY = -numeroAleatorio(100);
+                    
+                    var desX = -1;
+                    var desY = -1;
+                    
+                    //Se determina un objetivo aleatorio para el misil
+                    //El misil puede ir dirigido tanto a las ciudades intactas como a los silos con munición
+                    
+                    var targetAcquired = false;
+                    var tries = 5;
+                    
+                    if(numeroAleatorio(10) < 8){
+                        //Atacaremos a una ciudad
+                        while(tries > 0){
+                            var i = numeroAleatorio(cities.length);
+                            if(!cities[i].isDestroyed()){
+                                desX = cities[i].getCenterX();
+                                desY = cities[i].getCenterY();
+                                targetAcquired = true;
+                                break;
+                            }
+                            tries--;
+                        }
+                    }else{
+                        //Atacaremos a un silo
+                        while(tries > 0){
+                            var i = numeroAleatorio(missile_silos.length);
+                            if(missile_silos[i].hasMissilesLeft()){
+                                desX = missile_silos[i].getPosX();
+                                desY = missile_silos[i].getPosY();
+                                targetAcquired = true;
+                                break;
+                            }
+                            tries--;
+                        }
+                    }
+                  
+                    if(targetAcquired){
+                        missiles[missiles.length] = new Missile(posX, posY, desX, desY, enemy_missile_color, enemy_missile_speed);
+                    }else{
+                        //Si no se ha podido seleccionar un objetivo aleatoriamente, nos quedaremos con el primero o último disponible
+                        if(numeroAleatorio(10) > 4){
+                            var target = obtainFirstTarget();
+                        }else{
+                            var target = obtainLastTarget();
+                        }
+                        
+                        if(target instanceof (City)){
+                            missiles[missiles.length] = new Missile(posX, posY, target.getCenterX(), target.getCenterY(), enemy_missile_color, enemy_missile_speed);
+                        }else if(target instanceof (Silo)){
+                            missiles[missiles.length] = new Missile(posX, posY, target.getPosX(), target.getPosY(), enemy_missile_color, enemy_missile_speed);
+                        }
+                        
+                    }
+                    
+                };
+                
+                this.shootMissileFromPlane = function(posX, posY){
+                    if(remaining_missiles === 0){
+                        return;
+                    }
+                    
+                    if(numeroAleatorio(10) > 4){
+                        var target = obtainFirstTarget();
+                    }else{
+                        var target = obtainLastTarget();
+                    }
+                        
+                    if(target instanceof (City)){
+                        missiles[missiles.length] = new Missile(posX, posY, target.getCenterX(), target.getCenterY(), enemy_missile_color, enemy_missile_speed);
+                        remaining_enemies++;
+                    }else if(target instanceof (Silo)){
+                        missiles[missiles.length] = new Missile(posX, posY, target.getPosX(), target.getPosY(), enemy_missile_color, enemy_missile_speed);
+                        remaining_enemies++;
+                    }
+                };
+             
+                obtainFirstTarget = function(){
+                    //Función que devuelve el primer objetivo disponible desde el principio de la lista
+                    for(var i = 0; i < cities.length; i++){
+                        if(!cities[i].isDestroyed()){
+                            return cities[i];
+                        }
+                    }
+                    
+                    for(var i = 0; i < missile_silos.length; i++){
+                        if(missile_silos[i].hasMissilesLeft()){
+                            return missile_silos[i];
+                        }
+                    }
+                };
+                
+                obtainLastTarget = function(){
+                    //Función que devuelve el indice del primer objetivo disponible desde el final de la lista
+                    for(var i = missile_silos.length - 1; i >= 0; i--){
+                        if(missile_silos[i].hasMissilesLeft()){
+                            return missile_silos[i];
+                        }
+                    }
+        
+                    for(var i = cities.length - 1; i >= 0 ; i--){
+                        if(!cities[i].isDestroyed()){
+                            return cities[i];
+                        }
+                    }
+                };
+                
+                this.updateGame = function(){
+                    
+                    if(game_over){
+                        return;
+                    }
+                    
+                    if(remaining_cities === 0){
+                        game_over = true;
+                    }
+
+                    //Si ya no quedan misiles enemigos y el avion no esta en pantalla
+                    if(remaining_enemies === 0 && !wave_over){
+                        //Esperamos unos instantes antes de mostrar la puntuación
+                        setTimeout(showScoreResults, 3000);
+                        remaining_enemies = -1;
+                        wave_over = true;
+                    }
+
+                    //Actualizar estado de los misiles
+                    for(var i = missiles.length - 1; i >= 0; i--){
+                        missiles[i].Update();
+                        
+                        if(missiles[i].isReadyToDetonate()){
+                            //Si se trataba de un misil enemigo
+                            if(missiles[i].getColor() !== player_missile_color){
+                                remaining_enemies--;
+                            }
+                            explosions[explosions.length] = new Explosion(missiles[i].getPosX(), missiles[i].getPosY());
+                            missiles.splice(i, 1);
+                            explosion_audio.currentTime = 0;
+                            explosion_audio.play();
+                            
+                        }
+                    }
+                    
+                    //Actualizar estado de las explosiones
+                    for(var i = explosions.length - 1; i >= 0; i--){
+                        explosions[i].Update();
+                        
+                        //Comprobamos colisiones de explosiones con misiles
+                        for(var j = missiles.length - 1; j >= 0; j--){
+                            if(explosions[i].containsPoint(missiles[j].getPosX(), missiles[j].getPosY())){
+                                //Si es un misil enemigo
+                                if(missiles[j].getColor() !== player_missile_color){
+                                    score += destroyed_missile_points * score_bonus;
+                                    remaining_enemies--;
+                                }
+                                
+                                explosions[explosions.length] = new Explosion(missiles[j].getPosX(), missiles[j].getPosY());
+                                missiles.splice(j, 1);
+                            }
+                        }
+                        
+                        if(plane.isOnScreen()){
+                            //Comprobamos si colisiona con el avion
+                            if(explosions[i].containsPoint(plane.getPosX() - 30, plane.getPosY() + 5)){
+                                //El avion explota y queda fuera de pantalla
+                                
+                                plane.setOnScreen(false);
+                                explosions[explosions.length] = new Explosion(plane.getPosX() - 40, plane.getPosY());
+                                score += plane_points * score_bonus;
+                            }
+                        }
+                        
+                        if(ufo.isOnScreen()){
+                            if(explosions[i].containsPoint(ufo.getPosX(), ufo.getPosY())){
+                                ufo.setOnScreen(false);
+                                explosions[explosions.length] = new Explosion(ufo.getPosX(), ufo.getPosY());
+                                score += ufo_points * score_bonus;
+                            }
+                        }
+                        
+                        //Comprobamos colisiones de explosiones con ciudades
+                        if(explosions[i].getPosY() >= 500){
+                            for(var j = cities.length - 1; j >= 0; j--){
+                                if(!cities[j].isDestroyed() && explosions[i].containsPoint(cities[j].getCenterX(), cities[j].getCenterY())){
+                                    cities[j].destroy();
+                                    remaining_cities--;
+                                }
+                            }
+                            
+                            for(var j = missile_silos.length - 1; j >= 0; j--){
+                                if(missile_silos[j].hasMissilesLeft() && explosions[i].containsPoint(missile_silos[j].getPosX(), missile_silos[j].getPosY())){
+                                    missile_silos[j].destroy();
+                                }
+                            }
+                        }
+                        
+                        //Cuando el radio de la explosión sea el mínimo, lo eliminamos de la lista
+                        if(explosions[i].getRadius() === 0.001){
+                            explosions.splice(i, 1);
+                        }
+                    }
+                    
+                    if(plane.isOnScreen()){
+                        plane.Update();
+                    }
+                    
+                    if(ufo.isOnScreen()){
+                        ufo.Update();
+                    }
+                };
+                
+                this.drawWorld = function(){
+                    //Dibujamos el terreno
+                    contexto.drawImage(terreno, 0, canvas.height - 104, canvas.width, 104);
+
+                    if(game_over){
+                        contexto.fillStyle = player_missile_color;
+                        contexto.font = "45px Consolas";
+                        contexto.textAlign = "center";
+                        contexto.textBaseLine = "middle";
+                        
+                        contexto.fillText("GAME OVER", canvas.width / 2, (canvas.height / 2) - 100);
+                        
+                         //Puntuacion final
+                         contexto.font = "40px Consolas";
+                        contexto.fillText("FINAL SCORE:", (canvas.width / 2) - 80, canvas.height / 2);
+                        contexto.fillStyle = enemy_missile_color;
+                        contexto.textAlign = "left";
+                        contexto.fillText(score, (canvas.width / 2) + 80, canvas.height / 2);
+                        
+                        contexto.fillStyle = player_missile_color;
+                        contexto.textAlign = "center";
+                        contexto.fillText("RELOAD PAGE TO PLAY AGAIN", canvas.width / 2, (canvas.height / 2) + 100);
+                        return;
+                    }
+                    
+                    //Texto de puntuación
+                    if(!show_title_screen){
+                        contexto.fillStyle = enemy_missile_color;
+                        contexto.font = "20px Consolas";
+                        contexto.textAlign = "left";
+                        contexto.textBaseLine = "middle";
+                        contexto.fillText("SCORE: "+score, 30, 30);
+                    }
+                    
+                    if(show_score_results){
+                        //Texto de Ronda
+                        contexto.fillStyle = player_missile_color;
+                        contexto.font = "30px Consolas";
+                        contexto.textAlign = "center";
+                        contexto.fillText("BONUS POINTS", (canvas.width / 2), (canvas.height / 2) - 100);
+                        
+                        contexto.fillStyle = enemy_missile_color;
+                        contexto.textAlign = "right";
+                        contexto.fillText(remaining_missile_points * remaining_missiles * score_bonus, (canvas.width / 2) - 70, (canvas.height / 2) - 40);
+                        contexto.fillText(remaining_city_points * remaining_cities * score_bonus, (canvas.width / 2) - 70, (canvas.height / 2) + 20);
+                        
+                        for(var i = 0; i < remaining_missiles; i++){
+                            contexto.drawImage(objetos, 56, 0, 12, 20, (canvas.width / 2) - 40 + (i * 14), (canvas.height / 2) - 60, 12, 20);
+                        }
+
+                        //Pintamos las ciudades y misiles restantes
+                        for(var i = 0; i < remaining_cities; i++){
+                            contexto.drawImage(objetos, 0, 0, 56, 20, (canvas.width / 2) - 40 + (i * 40),(canvas.height / 2) + 5, 36, 14);
+                        }
+                        
+                        //Texto de Bonus
+                        if(wave % 4 === 0){
+                            contexto.fillStyle = player_missile_color;
+                            contexto.textAlign = "center";
+                            contexto.fillText("BONUS CITY", (canvas.width / 2), (canvas.height / 2) + 140);
+                        }
+                        
+                        return;
+                    }
+                    
+                    //Dibujamos los silos de misiles
+                    for(var i = 0; i < missile_silos.length; i++){
+                        
+                        //Dibujamos los misiles disponibles del silo
+                        for(var j = 0; j < missile_silos[i].getStoredMissiles().length; j++){
+                            contexto.drawImage(objetos, 56, 0, 12, 20, missile_silos[i].getStoredMissiles()[j].getPosX(), missile_silos[i].getStoredMissiles()[j].getPosY(), 12, 20);
+                        }
+                        //Dibujamos textos de LOW o OUT
+                        if(missile_silos[i].getMissileCount() <= 3 && missile_silos[i].getMissileCount() > 0){
+                            contexto.drawImage(lowout, 0, 0, 92, 28, missile_silos[i].getPosX() - 46, missile_silos[i].getPosY() + 40, 92, 28);
+                        }else if(!missile_silos[i].hasMissilesLeft()){
+                            contexto.drawImage(lowout, 100, 0, 88, 28, missile_silos[i].getPosX() - 44, missile_silos[i].getPosY() + 40, 88, 28);
+                        }
+                    }
+                    
+                    //Dibujamos las ciudades
+                    for(var i = 0; i < cities.length; i++){
+                        //context.drawImage(img,sx,sy,swidth,sheight,x,y,width,height);
+                        if(!cities[i].isDestroyed()){
+                             contexto.drawImage(objetos, 0, 0, 56, 20, cities[i].getPosX(), cities[i].getPosY(), 56, 20);
+                        }
+                    }
+                    
+                    //Dibujamos las explosiones
+                    for(var i = 0; i < explosions.length; i++){
+                        //console.log("Pinta en "+explosions[i].getPosX()+", "+explosions[i].getPosY()+" con radio "+explosions[i].getRadius());
+                        contexto.fillStyle = colors[numeroAleatorio(colors.length)];
+                        contexto.beginPath();
+                        contexto.arc(explosions[i].getPosX(), explosions[i].getPosY(), explosions[i].getRadius(), 0, 2 * Math.PI);
+                        contexto.fill();
+                        contexto.closePath();
+                    }
+                    
+                    //Dibujamos la trayectoria de los misiles
+                    for(var i = 0; i < missiles.length; i++){
+                        contexto.strokeStyle = missiles[i].getColor();
+                        
+                        contexto.beginPath();
+                        contexto.moveTo(missiles[i].getOriginX(), missiles[i].getOriginY());
+                        contexto.lineTo(missiles[i].getPosX(), missiles[i].getPosY());
+                        contexto.stroke();
+                        contexto.closePath();
+                        
+                        //Pintamos el misil
+                        if(numeroAleatorio(10) > 5){
+                            contexto.fillStyle = "white";
+                            contexto.fillRect(missiles[i].getPosX() - 2, missiles[i].getPosY() - 2, 4, 4);
+                        }
+                        
+                        //Pintamos el marcador si el misil es del jugador (azul)
+                        if(missiles[i].getColor() === "blue"){
+                            contexto.fillStyle = "white";
+                            if(numeroAleatorio(10) > 5){
+                                contexto.fillStyle = "blue";
+                            }
+                            
+                            contexto.fillRect(missiles[i].getDestinyX() - 7, missiles[i].getDestinyY() - 1, 14, 2);
+                            contexto.fillRect(missiles[i].getDestinyX() - 1, missiles[i].getDestinyY() - 7, 2, 14);
+                        }
+                    }
+                    
+                    //Dibujamos alien y avión
+                    if(plane.isOnScreen()){
+                        contexto.drawImage(objetos, 44, 28, 64, 44, plane.getPosX() - 44, plane.getPosY(), 32, 22);
+                    }
+                    
+                    if(ufo.isOnScreen()){
+                        contexto.drawImage(objetos, 0, 28, 44, 52, ufo.getPosX() - 11, ufo.getPosY() - 13, 22, 26);
+                    }
+                    
+                    if(show_title_screen){
+                        contexto.fillStyle = player_missile_color;
+                        contexto.font = "80px Consolas";
+                        contexto.textAlign = "center";
+                        contexto.fillText("MISSILE COMMANDER", (canvas.width / 2), (canvas.height / 2) - 140);
+                        contexto.font = "40px Consolas";
+                    
+                        contexto.fillText("REALIZADO POR:", (canvas.width / 2), (canvas.height / 2));
+                        contexto.fillStyle = "white";
+                        contexto.fillText("JESUS DAVID ROJO MARTIN", (canvas.width / 2), (canvas.height / 2) + 50);
+                        return;
+                    }
+                    
+                    if(show_wave_hud){
+                        //Texto de Ronda
+                        contexto.fillStyle = player_missile_color;
+                        contexto.font = "30px Consolas";
+                        contexto.textAlign = "center";
+                        contexto.fillText("LEVEL ", (canvas.width / 2) - 10, (canvas.height / 2) - 40);
+                        
+                        contexto.fillStyle = enemy_missile_color;
+                        contexto.fillText(wave, (canvas.width / 2) + 50, (canvas.height / 2) - 40);
+                        
+                        //Texto de Bonus
+                        contexto.fillStyle = enemy_missile_color;
+                        contexto.fillText(score_bonus, (canvas.width / 2) - 70, (canvas.height / 2) + 40);
+                        contexto.fillStyle = player_missile_color;
+                        contexto.fillText("X POINTS", (canvas.width / 2) + 20, (canvas.height / 2) + 40);
+                        
+                        //Texto de Objetivo
+                        contexto.fillText("DEFEND", (canvas.width / 2) - 180, (canvas.height / 2) + 150);
+                        contexto.fillText("CITIES", (canvas.width / 2) + 180, (canvas.height / 2) + 150);
+                    }
+                };
+            }
+            
+            function Silo(pos_x, pos_y){
+                var posX = pos_x;
+                var posY = pos_y;
+                
+                var missiles_count = 10;
+                var storedMissiles = [];
+                
+                this.setupMissiles = function(max){
+                    storedMissiles = [];
+                    missiles_count = max;
+                    
+                    var index = 0;
+                    var offset_h = 0;
+                    var offset_v = 0;
+
+                    for(var i = 0; i < 4; i++){
+                        for(var j = 0; j <= i; j++){
+                            storedMissiles[index] = new StoredMissile(posX - offset_v + j * 22, posY + offset_v);
+                            index++;
+                            
+                            if(index >= max){
+                                return;
+                            }
+                        }
+                        offset_h -= 11;
+                        offset_v += 12;
+                    }
+                };
+            
+                this.shootMissile = function(){
+                    storedMissiles.splice(storedMissiles.length - 1, 1);
+                    missiles_count--;
+                };
+                
+                this.getMissileCount = function(){
+                    return missiles_count;
+                };
+                
+                this.hasMissilesLeft = function(){
+                    return missiles_count > 0;
+                };
+                
+                this.destroy = function(){
+                    missiles_count = 0;
+                    storedMissiles = [];
+                };
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+                
+                this.getStoredMissiles = function(){
+                    return storedMissiles;
+                };
+            }
+            
+            function StoredMissile(pos_x, pos_y){
+                var posX = pos_x;
+                var posY = pos_y;
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+            }
+            
+            function City(pos_x, pos_y){
+                var posX = pos_x;
+                var posY = pos_y;
+                var centerX = pos_x + 28;
+                var centerY = pos_y + 10;
+                
+                var destroyed = false;
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+                
+                this.getCenterX = function(){
+                    return centerX;
+                };
+                
+                this.getCenterY = function(){
+                    return centerY;
+                };
+                
+                this.isDestroyed = function(){
+                    return destroyed;
+                };
+                
+                this.destroy = function(){
+                    destroyed = true;
+                };
+                
+                this.rebuild = function(){
+                    destroyed = false;
+                };
+            }
+            
+            function Missile(or_x, or_y, des_x, des_y, color, speed){
+                var originX = or_x;
+                var originY = or_y;
+                var posX = or_x;
+                var posY = or_y;
+                var desX = des_x;
+                var desY = des_y;
+                var trail_color = color;
+                var speed = speed;
+                var ready_to_detonate = false;
+                
+                var totalDistance = getDistanceBetweenPoints(or_x, or_y, des_x, des_y);
+                var distanceTravelled = 0.0;
+                var directionX = (des_x - or_x) / totalDistance;
+                var directionY = (des_y - or_y) / totalDistance;
+                
+                this.Update = function(){
+                    posX += (directionX * speed * 1000 / ritmo);
+                    posY += (directionY * speed * 1000 / ritmo);
+                    
+                    distanceTravelled = getDistanceBetweenPoints(or_x, or_y, posX, posY);
+                    
+                    if(distanceTravelled >= totalDistance){
+                        ready_to_detonate = true;
+                        posX = desX;
+                        posY = desY;
+                    }
+                };
+                
+                this.isReadyToDetonate = function(){
+                    return ready_to_detonate;
+                };
+                
+                this.getOriginX = function(){
+                    return originX;
+                };
+                
+                this.getOriginY = function(){
+                    return originY;
+                };
+                
+                this.getDestinyX = function(){
+                    return desX;
+                };
+                
+                this.getDestinyY = function(){
+                    return desY;
+                };
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+                
+                this.getColor = function(){
+                    return trail_color;
+                };
+            }
+            
+            function Explosion(pos_x, pos_y){
+                var posX = pos_x;
+                var posY = pos_y;
+                var growing_time = 1500;  //Tiempo de vida
+                var radius = 5;
+                
+                this.Update = function(){
+                    //console.log("Tiempo: "+growing_time);
+                    growing_time = growing_time -  (1000 / ritmo);
+                    
+                    if(growing_time > 0){
+                        radius += 1.3;
+                    }else{
+                        radius -= 1.3;
+                        
+                        if(radius <= 0)
+                            radius = 0.0001;
+                    }
+                };
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+                
+                this.getRadius = function(){
+                    return radius;
+                };
+                
+                this.containsPoint = function(point_x, point_y){
+                    return getDistanceBetweenPoints(point_x, point_y, posX, posY) < radius;
+                };
+            }
+            
+            function Ufo(){
+                var posX = 0;
+                var posY = 0;
+                var speed = 0.1;
+                var direction = 1;  //1 o -1
+                var onScreen = false;
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+                
+                this.isOnScreen = function(){
+                    return onScreen;
+                };
+                
+                this.setOnScreen = function(state){
+                    onScreen = state;
+                };
+                
+                this.setupOnScreen = function(){
+                    //Posicionamos el avion en una posicion aleatoria y con direccion aleatoria
+                    onScreen = true;
+                    
+                    if(numeroAleatorio(10) <= 4){
+                        direction = -1;
+                        posX = 30 + canvas.width + numeroAleatorio(800);
+                    }else{
+                        direction = 1;
+                        posX = -numeroAleatorio(800) - 30;
+                    }
+
+                    posY = 50 + numeroAleatorio(400);
+                };
+                
+                this.Update = function(){
+                    posX += (direction * speed * 1000 / ritmo);
+                };
+            }
+            
+            function Plane(){
+                var posX = 0;
+                var posY = 0;
+                var speed = 0.1;
+                var acumulated_distance = 0;
+                var distanceToShoot = 200;
+                var missiles_count = 3;
+                var onScreen = false;
+                
+                this.getPosX = function(){
+                    return posX;
+                };
+                
+                this.getPosY = function(){
+                    return posY;
+                };
+                
+                this.isOnScreen = function(){
+                    return onScreen;
+                };
+                
+                this.setOnScreen = function(state){
+                    onScreen = state;
+                };
+                
+                this.setupOnScreen = function(){
+                    //Posicionamos el avion en una posicion aleatoria y con direccion aleatoria
+                    onScreen = true;
+                    posX = 30 + canvas.width + numeroAleatorio(800);
+                    posY = 100 + numeroAleatorio(200);
+                    acumulated_distance = 0;
+                    missiles_count = 3;
+                };
+                
+                this.getCenterX = function(){
+                    return posX + 16;
+                };
+                
+                this.getCenterY = function(){
+                    return posY + 10;
+                };
+                
+                this.Update = function(){
+                    var newPos = posX - (speed * 1000 / ritmo);
+
+                    acumulated_distance += getDistanceBetweenPoints(posX, posY, newPos, posY);
+                    posX = newPos;
+                    
+                    if(acumulated_distance >= distanceToShoot && posX < canvas.width && posX > 0){
+                        acumulated_distance = 0;
+                        fireMissile();
+                    }
+                };
+                
+                fireMissile = function(){
+                    if(missiles_count > 0){
+                        mundo.shootMissileFromPlane(posX - 30, posY + 5);
+                        missiles_count--;
+                    }
+                };
+            }
+            
+            //Inicializamos el Juego y sus timers.
+            var mundo = new Game();
+            mundo.setupGame();
+            
+            var screenUpdateTimer = setInterval(function(){
+                mundo.updateGame(); 
+            }, 1000 / ritmo);
+            
+            requestAnimationFrame(dibujaCanvas);
+            function dibujaCanvas(){
+                contexto.clearRect(0,0, contexto.canvas.width, contexto.canvas.height);
+                if(!mundo.isLoadingWave()){
+                    mundo.drawWorld();
+                }
+                requestAnimationFrame(dibujaCanvas);
+            }
+
+            //Esta funcion devuelve un número entre 0 y máximo.
+            function numeroAleatorio(maximo){
+                return Math.floor(Math.random() * maximo);
+            }
+            
+            function getDistanceBetweenPoints(x1, y1, x2, y2){
+                return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            }
+            
+        </script>
+    </body>
+</html>

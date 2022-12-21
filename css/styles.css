@@ -310,7 +310,7 @@ caption {
   padding-top: 0.5rem;
   padding-bottom: 0.5rem;
   color: #6c757d;
-  text-align: left;
+  text-align: center;
 }
 
 th {
@@ -489,7 +489,8 @@ progress {
 
 .lead {
   font-size: 1.25rem;
-  font-weight: 300;
+  font-weight: 400;
+  color: #000;
 }
 
 .display-1 {
@@ -11293,8 +11294,8 @@ html {
 }
 
 .content-section {
-  padding-top: 7.5rem;
-  padding-bottom: 7.5rem;
+  padding-top: 3rem;
+  padding-bottom: 3rem;
 }
 
 .content-section-heading h2, .content-section-heading .h2 {
@@ -11303,6 +11304,10 @@ html {
 .content-section-heading h3, .content-section-heading .h3 {
   font-size: 1rem;
   text-transform: uppercase;
+}
+
+.light-text {
+  color: #ecedee;
 }
 
 .text-faded {
@@ -11339,7 +11344,7 @@ html {
   height: 100%;
   transition: all 0.4s ease 0s;
   transform: translateX(250px);
-  background: #1D809F;
+  background: #495057;
   border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -11408,6 +11413,7 @@ html {
   line-height: 50px;
   z-index: 999;
 }
+
 .menu-toggle:focus, .menu-toggle:hover {
   color: #fff;
 }
@@ -11434,22 +11440,22 @@ html {
 }
 
 footer.footer {
-  padding-top: 5rem;
-  padding-bottom: 5rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
 }
-footer.footer .social-link {
+.social-link {
   display: block;
   text-decoration: none;
   height: 4rem;
   width: 4rem;
   line-height: 4.3rem;
   font-size: 1.5rem;
-  background-color: #1D809F;
+  background-color: var(--bs-gray-700);
   transition: background-color 0.15s ease-in-out;
   box-shadow: 0 3px 3px 0 rgba(0, 0, 0, 0.1);
 }
-footer.footer .social-link:hover {
-  background-color: #155d74;
+.social-link:hover {
+  background-color: var(--bs-gray-500);
   text-decoration: none;
 }
 
@@ -11474,9 +11480,9 @@ footer.footer .social-link:hover {
   display: table;
   width: 100%;
   height: auto;
-  padding-top: 8rem;
-  padding-bottom: 8rem;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.1) 100%), url("../assets/img/bg-masthead.jpg");
+  padding-top: 4rem;
+  padding-bottom: 4rem;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.1) 100%), url("../assets/img/header_background.jpg");
   background-position: center center;
   background-repeat: no-repeat;
   background-size: cover;
@@ -11488,11 +11494,23 @@ footer.footer .social-link:hover {
 }
 @media (min-width: 992px) {
   .masthead {
-    height: 100vh;
+    height: 50vh;
   }
   .masthead h1, .masthead .h1 {
     font-size: 5.5rem;
   }
+}
+
+.masthead h1
+{
+  color: azure;
+  font-weight: normal;
+}
+
+.masthead h3
+{
+  color: #c8dbe0;
+  font-weight: normal;
 }
 
 .portfolio-item {
@@ -11506,7 +11524,7 @@ footer.footer .social-link:hover {
   display: flex;
   height: 100%;
   width: 100%;
-  background-color: rgba(33, 37, 41, 0.2);
+  background-color: rgba(33, 37, 41, 0);
   position: absolute;
   top: 0;
   bottom: 0;
@@ -11514,7 +11532,8 @@ footer.footer .social-link:hover {
 }
 .portfolio-item .caption .caption-content {
   color: #fff;
-  margin: auto 2rem 2rem;
+  margin: auto auto 2rem;
+  text-align: center;
 }
 .portfolio-item .caption .caption-content h2, .portfolio-item .caption .caption-content .h2 {
   font-size: 0.8rem;
@@ -11538,9 +11557,8 @@ footer.footer .social-link:hover {
   }
   .portfolio-item .caption .caption-content {
     transition: opacity 0.25s;
-    margin-left: 5rem;
-    margin-right: 5rem;
-    margin-bottom: 5rem;
+
+    margin-bottom: 3rem;
   }
   .portfolio-item img {
     transition: -webkit-clip-path 0.25s ease-out;
@@ -11554,7 +11572,7 @@ footer.footer .social-link:hover {
             clip-path: inset(2rem);
   }
   .portfolio-item:hover .caption {
-    background-color: rgba(29, 128, 159, 0.9);
+    background-color: rgba(20, 20, 20, 0.9);
     -webkit-clip-path: inset(2rem);
             clip-path: inset(2rem);
   }
@@ -11569,4 +11587,13 @@ footer.footer .social-link:hover {
   line-height: 7.5rem;
   font-size: 2.25rem;
   box-shadow: 0 3px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.badges-projects {
+  text-align: center;
+}
+
+.about-bordered {
+  padding: 1rem;
+  border: 1px solid #000;
 }

@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<!--
+FUNDAMENTOS DE TECNOLOGÍA DE VIDEOJUEGOS - PRÁCTICA 2
+AUTOR: Jesús David Rojo Martín
+-->
+<html>
+    <head>
+        <title>Game of Life</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link rel="icon" type="image/x-icon" href="assets/img/game_of_life/favicon.png" />
+        <style>
+            canvas{
+                margin: 10px;
+                padding: 0px;
+                border: 1px solid black;
+                background-color: lightgrey;
+            }
+        </style>
+
+        <link href="Missile Commander/style.css" rel="stylesheet" />
+
+         <!-- Font Awesome icons (free version)-->
+         <script src="https://use.fontawesome.com/releases/v6.1.0/js/all.js" crossorigin="anonymous"></script>
+    </head>
+    <body>
+        <!-- Back button-->
+        <a class="menu-toggle" href="page_game_of_life.html"><i class="fa fa-arrow-left"></i></a>
+        <br>
+        <br>
+        <br>
+        <h1>Game of Life</h1>
+        <div>
+            <canvas id="lienzo" width="400" height="400">Error al cargar el canvas</canvas>
+        </div>
+        <p id="simulation_info">Simulation running: Step 0</p>
+        <p id="cell_info">The cell (0, 0) has been death for 0 steps</p>
+        <input type="button" value = "Play" onclick="play_button_pressed();"/>
+        <input type="button" value = "Pause" onclick="pause_button_pressed();"/>
+        <input type="button" value = "Randomize" onclick="mundo.randomize();"/>
+        <input type="button" value = "Clear" onclick="mundo.clearWorld();"/>
+        <input type="button" value = "Size 40" onclick="mundo.setSize(40);"/>
+        <input type="button" value = "Size 80" onclick="mundo.setSize(80);"/>
+        <script>
+            var canvas = document.getElementById("lienzo");
+            var contexto = canvas.getContext("2d");
+            
+            var simulation_active = false;
+            var ritmo = 10; //Veces por segundo que va a ejecutarse el tempo
+
+            canvas.addEventListener('mousedown', function(e) {
+                getClickPosition(canvas, e);
+                
+            });
+            function getClickPosition(canvas, event) {
+                //Obtenemos la posición del click en el canvas
+                const rect = canvas.getBoundingClientRect();
+                mundo.changeClickedCellState(event.clientX - rect.left, event.clientY - rect.top);
+            };
+            
+            canvas.addEventListener('mousemove', function(e){
+                getMousePosition(canvas, e);
+            });
+            
+            function play_pause_button_pressed(){
+                simulation_active = !simulation_active;
+
+                if(!simulation_active){
+                    clearInterval(temporalizador);
+                }else{
+                    var temporalizador = setInterval(function(){
+                        mundo.updateWorld();
+                        
+                        if(!simulation_active)
+                            clearInterval(temporalizador);
+                    }, 1000 / ritmo);
+                }
+            }
+            
+            function play_button_pressed(){
+                if(!simulation_active){
+                    simulation_active = true;
+                    
+                    var temporalizador = setInterval(function(){
+                        mundo.updateWorld();
+                        
+                        if(!simulation_active)
+                            clearInterval(temporalizador);
+                    }, 1000 / ritmo);
+                }
+            }
+            
+            function pause_button_pressed(){
+                if(simulation_active){
+                    simulation_active = false;
+                    clearInterval(temporalizador);
+                }
+            }
+            
+            function getMousePosition(canvas, event) {
+                const rect = canvas.getBoundingClientRect();
+                mundo.showCellInfo(event.clientX - rect.left, event.clientY - rect.top);
+            }
+            
+            function Mundo(){
+                var size = 40;
+                var cells;
+                var simulation_steps = 0;
+                
+                this.setupWorld = function(){
+                    //Inicializamos el array de celulas del mundo
+                    cells = [];
+                    simulation_active = false;
+                    simulation_steps = 0;
+                    
+                    for(var i = 0; i < size; i++){
+                        cells[i] = [];
+                        for(var j = 0; j < size; j++){
+                            cells[i][j] = new Celula(false);
+                        }
+                    } 
+                };
+                
+                this.changeClickedCellState = function(posX, posY){
+                    var index_x = 0;
+                    var index_y = 0;
+                    
+                    if(posX > 10)
+                        index_x = Math.floor(posX / 10);
+                    if(posY > 10)
+                        index_y = Math.floor(posY / 10);
+
+                    if(cells[index_x][index_y].isAlive()){
+                        cells[index_x][index_y].setState(false);
+                    }else{
+                        cells[index_x][index_y].setState(true);
+                    }
+                };
+                
+                this.showCellInfo = function(posX, posY){
+                    var index_x = 0;
+                    var index_y = 0;
+                    
+                    if(posX > 10)
+                        index_x = Math.floor(posX / 10);
+                    if(posY > 10)
+                        index_y = Math.floor(posY / 10);
+                    
+                    var salida = "The cell ("+index_x+", "+index_y+") has been ";
+                    if(cells[index_x][index_y].isAlive())
+                        salida += "alive for "+cells[index_x][index_y].getStateTime()+" steps";
+                    else
+                        salida += "death for "+cells[index_x][index_y].getStateTime()+" steps";
+                    
+                    document.getElementById("cell_info").innerHTML = salida;
+                };
+                
+                this.updateWorld = function(){
+                    //Calculamos siguiente estado del mundo
+                    var nextCells = [];
+                    
+                    for(var i = 0; i < size; i++){
+                        nextCells[i] = [];
+                        for(var j = 0; j < size; j++){
+                            nextCells[i][j] = new Celula(cells[i][j].isAlive());
+                            nextCells[i][j].setStateTime(cells[i][j].getStateTime());
+
+                            var num_adyacents = checkAdyacents(i, j);
+                           
+                            if(cells[i][j].isAlive() && (num_adyacents !== 2 && num_adyacents !== 3))
+                                nextCells[i][j].setState(false);
+                            else if(num_adyacents === 3)
+                                nextCells[i][j].setState(true);
+                            
+                            nextCells[i][j].updateStateTime();
+                        }
+                    }
+                    cells = nextCells;
+                    simulation_steps++;
+                    
+                    document.getElementById("simulation_info").innerHTML = "Simulation running: Step "+simulation_steps;
+                };
+                
+                this.drawWorld = function(){
+                    for(var i = 0; i < size; i++){
+                        for(var j = 0; j < size; j++){
+                            if(cells[i][j].isAlive())
+                                contexto.fillStyle = "white";
+                            else
+                                contexto.fillStyle = "black";       
+                        
+                            contexto.fillRect(i * 10, j * 10, 10, 10);
+                            contexto.strokeRect(i * 10, j * 10, 10, 10);
+                        }
+                    }
+                };
+                
+                checkAdyacents = function(index_i, index_j){
+                    //Comprobar el número de células vivas adyacentes 
+                    var n = 0;
+                    
+                    //Recordemos que el mapa es circular (al sobrepasar un extremo, se llega al otro)
+                    for(var i = index_i - 1; i <= index_i + 1; i++){
+                        for(var j = index_j - 1; j <= index_j + 1; j++){
+                            var aux_i = i;
+                            var aux_j = j;
+
+                            if(i === index_i && j === index_j)
+                                continue;
+                            
+                            if(i < 0)
+                                aux_i = size - 1;
+                            
+                            if(j < 0)
+                                aux_j = size - 1;
+                            
+                            if(i > size - 1)
+                                aux_i = 0;
+                            
+                            if(j > size - 1)
+                                aux_j = 0;
+                            
+                            if(cells[aux_i][aux_j].isAlive())
+                                n++;
+                        }
+                    }
+                    return n;
+                };
+                
+                this.clearWorld = function(){
+                    //Todas las celulas pasan a estar muertas
+                    simulation_active = false;
+                    simulation_steps = 0;
+                    
+                    for(var i = 0; i < size; i++){
+                        for(var j = 0; j < size; j++){
+                            cells[i][j].setState(false);
+                            cells[i][j].setStateTime(0);
+                        }
+                    }
+                };
+                
+                this.randomize = function(){
+                    simulation_active = false;
+                    simulation_steps = 0;
+                    
+                    cells = [];
+                    
+                    for(var i = 0; i < size; i++){
+                        cells[i] = [];
+                        for(var j = 0; j < size; j++){
+                            if(numeroAleatorio(10) < 5)
+                                cells[i][j] = new Celula(false);
+                            else
+                                cells[i][j] = new Celula(true);
+                            
+                            cells[i][j].setStateTime(0);
+                        }
+                    } 
+                };
+
+                this.setSize = function(newSize){
+                    if(size === newSize)
+                        return;
+                    
+                    size = newSize;
+                    
+                    canvas.width = 10 * size;
+                    canvas.height = 10 * size;
+
+                    this.setupWorld();
+                };
+            }
+            
+            function Celula(state){
+                var alive = state;    //0 = muerta, 1 = viva
+                var time_state = 0;
+                
+                this.updateStateTime = function(){
+                    time_state++;
+                };
+                
+                this.isAlive = function(){
+                    return alive;
+                };
+                
+                this.setState = function(newState){
+                    if(newState !== alive)
+                        time_state = 0;
+                    
+                    alive = newState;
+                };
+                
+                this.setStateTime = function(newTimeAlive){
+                    time_state = newTimeAlive;
+                };
+                
+                this.getStateTime = function(){
+                    return time_state;
+                };
+            }
+            
+            requestAnimationFrame(dibujaCanvas);  //Cuando el sistema pueda, hacer la funcion de dentro
+            function dibujaCanvas(){
+                contexto.clearRect(0,0, contexto.canvas.width, contexto.canvas.height);
+                mundo.drawWorld();
+                requestAnimationFrame(dibujaCanvas);
+            }
+            
+            //Esta funcion devuelve un número entre 0 y máximo.
+            function numeroAleatorio(maximo){
+                return Math.floor(Math.random() * maximo);
+            }
+            
+            var mundo = new Mundo();
+            mundo.setupWorld();
+        </script>
+    </body>
+</html>
